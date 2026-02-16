@@ -813,7 +813,11 @@ def sidebar():
     # ── 策略配置（按类别分组）
     st.sidebar.subheader("🎯 策略配置")
 
-    # 初始化 select_all 历史状态
+    default_strategies = ["ma_cross", "macd", "rsi", "multi_factor"]
+    for s in ALL_STRATEGIES:
+        if f"strat_{s}" not in st.session_state:
+            st.session_state[f"strat_{s}"] = s in default_strategies
+
     if "prev_select_all" not in st.session_state:
         st.session_state.prev_select_all = False
 
@@ -821,14 +825,11 @@ def sidebar():
         "✅ 全选所有策略", value=False, key="select_all_cb"
     )
 
-    # 检测全选状态变化，同步各策略复选框
     if select_all != st.session_state.prev_select_all:
         for s in ALL_STRATEGIES:
             st.session_state[f"strat_{s}"] = select_all
         st.session_state.prev_select_all = select_all
 
-    # 分类展示策略
-    default_strategies = ["ma_cross", "macd", "rsi", "multi_factor"]
     selected_strategies = []
     for cat, members in STRATEGY_CATEGORIES.items():
         with st.sidebar.expander(
@@ -837,7 +838,6 @@ def sidebar():
             for s in members:
                 checked = st.checkbox(
                     STRATEGY_NAMES[s],
-                    value=(s in default_strategies),
                     key=f"strat_{s}",
                 )
                 if checked:
