@@ -1,9 +1,12 @@
 import os
 import yaml
+import numpy as np
 from datetime import datetime
 from typing import List, Dict, Any, Optional
 
 from main import StockAnalyzer
+from database.db_manager import db
+from analysis.indicators import TechnicalIndicators
 from utils.stock_name import get_stock_name
 from utils.helpers import logger
 
@@ -168,6 +171,193 @@ class PortfolioAdvisor:
             "take_profit_price": None,
         }
 
+    def _calculate_smart_levels(
+        self,
+        df: "pd.DataFrame",
+        current_price: float,
+        cost_price: float,
+        signal: str,
+        confidence: float,
+    ) -> Dict[str, Any]:
+        """基于技术指标计算智能止盈止损价位
+
+        综合使用布林带、均线、ATR、近期高低点和RSI等技术指标，
+        结合策略信号方向和置信度，给出有技术依据的止盈止损建议。
+        """
+        if df.empty or current_price <= 0:
+            return {}
+
+        latest = df.iloc[-1]
+        lookback = min(20, len(df))
+        recent = df.tail(lookback)
+
+        # ── 提取技术指标 ──
+        boll_lower = latest.get("boll_lower")
+        boll_upper = latest.get("boll_upper")
+        boll_mid = latest.get("boll_mid")
+        ma20 = latest.get("ma20")
+        ma60 = latest.get("ma60")
+        atr = latest.get("atr")
+        rsi = latest.get("rsi")
+
+        # 近期高低点
+        recent_low = recent["low"].min() if "low" in recent.columns else None
+        recent_high = recent["high"].max() if "high" in recent.columns else None
+
+        # 检查关键指标可用性
+        has_boll = boll_lower is not None and not np.isnan(boll_lower)
+        has_ma20 = ma20 is not None and not np.isnan(ma20)
+        has_ma60 = ma60 is not None and not np.isnan(ma60)
+        has_atr = atr is not None and not np.isnan(atr) and atr > 0
+        has_rsi = rsi is not None and not np.isnan(rsi)
+        has_recent_low = recent_low is not None and not np.isnan(recent_low)
+        has_recent_high = recent_high is not None and not np.isnan(recent_high)
+        has_boll_upper = boll_upper is not None and not np.isnan(boll_upper)
+        has_boll_mid = boll_mid is not None and not np.isnan(boll_mid)
+
+        # ── 信号方向的ATR系数 ──
+        # BUY → 看多 → 止损紧、止盈宽; SELL → 看空 → 止损宽、止盈紧
+        if signal == "BUY":
+            sl_atr_k = 0.5 if confidence >= 0.65 else 0.8
+            tp_atr_k = 1.5 if confidence >= 0.65 else 1.0
+        elif signal == "SELL":
+            sl_atr_k = 1.5 if confidence >= 0.65 else 1.2
+            tp_atr_k = 0.5 if confidence >= 0.65 else 0.8
+        else:  # HOLD
+            sl_atr_k = 1.0
+            tp_atr_k = 1.0
+
+        # ══════════════════════════════════════════
+        # 止损价计算: 选择最佳支撑位 - ATR缓冲
+        # ══════════════════════════════════════════
+        support_candidates = []
+        if has_boll and boll_lower < current_price:
+            support_candidates.append(("布林带下轨", float(boll_lower)))
+        if has_ma20 and ma20 < current_price:
+            support_candidates.append(("MA20均线", float(ma20)))
+        if has_recent_low and recent_low < current_price:
+            support_candidates.append(("近20日最低", float(recent_low)))
+
+        sl_basis = ""
+        sl_level = 0.0
+        sl_atr_buffer = 0.0
+
+        if support_candidates:
+            # 选取最接近现价的支撑位（最高的支撑 = 最近的）
+            support_candidates.sort(key=lambda x: x[1], reverse=True)
+            sl_basis, sl_level = support_candidates[0]
+        elif has_boll:
+            # 所有支撑都在现价之上（罕见），用布林下轨兜底
+            sl_basis, sl_level = "布林带下轨", float(boll_lower)
+        else:
+            # 无技术指标可用，回退：现价 × (1 - 8%)
+            sl_basis = "默认百分比"
+            sl_level = current_price * 0.92
+
+        # 应用ATR缓冲
+        if has_atr:
+            sl_atr_buffer = float(atr) * sl_atr_k
+            stop_loss_price = sl_level - sl_atr_buffer
+        else:
+            stop_loss_price = sl_level * 0.98  # 无ATR时下移2%
+            sl_atr_buffer = 0.0
+
+        # 约束：止损不能为负，且不应高于现价的95%
+        stop_loss_price = max(stop_loss_price, 0.01)
+        stop_loss_price = min(stop_loss_price, current_price * 0.95)
+
+        # ══════════════════════════════════════════
+        # 止盈价计算: 选择最佳阻力位 + ATR延伸
+        # ══════════════════════════════════════════
+        resistance_candidates = []
+        if has_boll_upper and boll_upper > current_price:
+            resistance_candidates.append(("布林带上轨", float(boll_upper)))
+        if has_recent_high and recent_high > current_price:
+            resistance_candidates.append(("近20日最高", float(recent_high)))
+        if has_ma60 and ma60 > current_price:
+            resistance_candidates.append(("MA60均线", float(ma60)))
+
+        tp_basis = ""
+        tp_level = 0.0
+        tp_atr_extension = 0.0
+
+        if resistance_candidates:
+            # 选取最接近现价的阻力位（最低的阻力 = 最近的）
+            resistance_candidates.sort(key=lambda x: x[1])
+            tp_basis, tp_level = resistance_candidates[0]
+
+            # 如果强看多信号，目标可以突破第一阻力
+            if (
+                signal == "BUY"
+                and confidence >= 0.65
+                and len(resistance_candidates) > 1
+            ):
+                tp_basis, tp_level = resistance_candidates[1]
+                tp_basis = f"{tp_basis}(强势突破)"
+        elif has_boll_upper:
+            tp_basis, tp_level = "布林带上轨", float(boll_upper)
+        else:
+            tp_basis = "默认百分比"
+            tp_level = current_price * 1.15
+
+        # 应用ATR延伸
+        if has_atr:
+            tp_atr_extension = float(atr) * tp_atr_k
+            take_profit_price = tp_level + tp_atr_extension
+        else:
+            take_profit_price = tp_level * 1.02
+            tp_atr_extension = 0.0
+
+        # RSI修正：超买时收紧止盈目标
+        rsi_note = ""
+        if has_rsi:
+            if rsi > 75:
+                take_profit_price = min(take_profit_price, tp_level)
+                rsi_note = "RSI超买，止盈目标收紧"
+            elif rsi < 25:
+                stop_loss_price = min(stop_loss_price, sl_level)
+                rsi_note = "RSI超卖，止损位收紧保护"
+
+        # 约束：止盈至少高于现价1%
+        take_profit_price = max(take_profit_price, current_price * 1.01)
+
+        # ── 组装结果 ──
+        indicators_used = []
+        if has_boll:
+            indicators_used.append("布林带")
+        if has_ma20:
+            indicators_used.append("MA20")
+        if has_ma60:
+            indicators_used.append("MA60")
+        if has_atr:
+            indicators_used.append("ATR")
+        if has_rsi:
+            indicators_used.append("RSI")
+        if has_recent_low or has_recent_high:
+            indicators_used.append("近期高低点")
+
+        return {
+            "stop_loss_price": round(stop_loss_price, 4),
+            "take_profit_price": round(take_profit_price, 4),
+            "calc_method": {
+                "sl_basis": sl_basis,
+                "sl_level": round(sl_level, 4),
+                "sl_atr_buffer": round(sl_atr_buffer, 4),
+                "tp_basis": tp_basis,
+                "tp_level": round(tp_level, 4),
+                "tp_atr_extension": round(tp_atr_extension, 4),
+                "atr": round(float(atr), 4) if has_atr else None,
+                "rsi": round(float(rsi), 2) if has_rsi else None,
+                "rsi_note": rsi_note,
+                "signal_effect": {
+                    "BUY": "止损收紧、止盈放宽",
+                    "SELL": "止损放宽、止盈收紧",
+                    "HOLD": "标准区间",
+                }.get(signal, "标准区间"),
+                "indicators_used": indicators_used,
+            },
+        }
+
     def analyze_holding(
         self, holding: Dict[str, Any], strategies: Optional[List[str]] = None
     ) -> Dict[str, Any]:
@@ -220,28 +410,19 @@ class PortfolioAdvisor:
         risk_cfg = self.risk_config
         advice = self._generate_advice(final_signal, confidence, pnl_pct, risk_cfg)
 
-        sl_rate = risk_cfg.get("stop_loss", 0.08)
-        tp_rate = risk_cfg.get("take_profit", 0.20)
-
-        if cost_price > 0:
-            base_price = cost_price
-            base_label = "成本价"
-        elif current_price > 0:
-            base_price = current_price
-            base_label = "现价"
-        else:
-            base_price = 0
-            base_label = ""
-
-        if base_price > 0:
-            advice["stop_loss_price"] = round(base_price * (1 - sl_rate), 2)
-            advice["take_profit_price"] = round(base_price * (1 + tp_rate), 2)
-            advice["price_calc"] = {
-                "base_price": round(base_price, 2),
-                "base_label": base_label,
-                "sl_rate": sl_rate,
-                "tp_rate": tp_rate,
-            }
+        try:
+            df_raw = db.get_daily_data(symbol)
+            if not df_raw.empty:
+                df_ind = TechnicalIndicators.calculate_all(df_raw)
+                smart_levels = self._calculate_smart_levels(
+                    df_ind, current_price, cost_price, final_signal, confidence
+                )
+                if smart_levels:
+                    advice["stop_loss_price"] = smart_levels["stop_loss_price"]
+                    advice["take_profit_price"] = smart_levels["take_profit_price"]
+                    advice["price_calc"] = smart_levels["calc_method"]
+        except Exception as e:
+            logger.warning(f"智能止盈止损计算失败 {symbol}: {e}")
 
         strategy_details = []
         for s_name, s_detail in result.get("details", {}).items():

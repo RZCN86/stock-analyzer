@@ -958,10 +958,11 @@ def page_portfolio():
 
     if advisor.holdings:
         with st.sidebar.expander("🗑️ 删除持仓", expanded=False):
-            for h in advisor.holdings:
+            for i, h in enumerate(advisor.holdings):
                 label = f"{h['symbol']} ({MARKET_LABELS.get(h.get('market', 'A'), h.get('market', 'A'))})"
                 if st.button(
-                    f"删除 {label}", key=f"pf_del_{h['symbol']}_{h.get('market', 'A')}"
+                    f"删除 {label}",
+                    key=f"pf_del_{h['symbol']}_{h.get('market', 'A')}_{i}",
                 ):
                     advisor.remove_holding(h["symbol"], h.get("market", "A"))
                     st.rerun()
@@ -1090,7 +1091,48 @@ def page_portfolio():
                 st.markdown(
                     f"🎯 止盈价: **{sym}{tp_price:.2f}** &nbsp;|&nbsp; 🛡️ 止损价: **{sym}{sl_price:.2f}**"
                 )
-                if calc:
+                if calc and "sl_basis" in calc:
+                    sl_basis = calc.get("sl_basis", "")
+                    sl_level = calc.get("sl_level", 0)
+                    sl_atr_buf = calc.get("sl_atr_buffer", 0)
+                    tp_basis = calc.get("tp_basis", "")
+                    tp_level = calc.get("tp_level", 0)
+                    tp_atr_ext = calc.get("tp_atr_extension", 0)
+                    atr_val = calc.get("atr")
+                    rsi_val = calc.get("rsi")
+                    rsi_note = calc.get("rsi_note", "")
+                    signal_eff = calc.get("signal_effect", "")
+                    indicators = calc.get("indicators_used", [])
+
+                    sl_formula = f"{sl_basis} {sym}{sl_level:.2f}"
+                    if sl_atr_buf > 0:
+                        sl_formula += f" − ATR缓冲 {sym}{sl_atr_buf:.2f}"
+                    sl_formula += f" = **{sym}{sl_price:.2f}**"
+
+                    tp_formula = f"{tp_basis} {sym}{tp_level:.2f}"
+                    if tp_atr_ext > 0:
+                        tp_formula += f" + ATR延伸 {sym}{tp_atr_ext:.2f}"
+                    tp_formula += f" = **{sym}{tp_price:.2f}**"
+
+                    detail_lines = [
+                        f"🛡️ 止损: {sl_formula}",
+                        f"🎯 止盈: {tp_formula}",
+                    ]
+                    if atr_val is not None:
+                        detail_lines.append(f"📐 ATR(14): {sym}{atr_val:.2f}")
+                    if rsi_val is not None:
+                        detail_lines.append(f"📊 RSI(14): {rsi_val:.1f}")
+                    if rsi_note:
+                        detail_lines.append(f"⚡ {rsi_note}")
+                    if signal_eff:
+                        detail_lines.append(f"📈 信号影响: {signal_eff}")
+                    if indicators:
+                        detail_lines.append(f"🔧 综合指标: {', '.join(indicators)}")
+
+                    with st.expander("📐 止盈止损计算逻辑", expanded=False):
+                        for line in detail_lines:
+                            st.markdown(line)
+                elif calc:
                     base_label = calc.get("base_label", "")
                     base_price = calc.get("base_price", 0)
                     sl_r = calc.get("sl_rate", 0)
