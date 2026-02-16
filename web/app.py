@@ -813,22 +813,16 @@ def sidebar():
     # ── 策略配置（按类别分组）
     st.sidebar.subheader("🎯 策略配置")
 
+    def _sync_select_all():
+        val = st.session_state.select_all_cb
+        for _s in ALL_STRATEGIES:
+            st.session_state[f"strat_{_s}"] = val
+
     default_strategies = ["ma_cross", "macd", "rsi", "multi_factor"]
-    for s in ALL_STRATEGIES:
-        if f"strat_{s}" not in st.session_state:
-            st.session_state[f"strat_{s}"] = s in default_strategies
 
-    if "prev_select_all" not in st.session_state:
-        st.session_state.prev_select_all = False
-
-    select_all = st.sidebar.checkbox(
-        "✅ 全选所有策略", value=False, key="select_all_cb"
+    st.sidebar.checkbox(
+        "✅ 全选所有策略", key="select_all_cb", on_change=_sync_select_all
     )
-
-    if select_all != st.session_state.prev_select_all:
-        for s in ALL_STRATEGIES:
-            st.session_state[f"strat_{s}"] = select_all
-        st.session_state.prev_select_all = select_all
 
     selected_strategies = []
     for cat, members in STRATEGY_CATEGORIES.items():
@@ -838,6 +832,7 @@ def sidebar():
             for s in members:
                 checked = st.checkbox(
                     STRATEGY_NAMES[s],
+                    value=(s in default_strategies),
                     key=f"strat_{s}",
                 )
                 if checked:
