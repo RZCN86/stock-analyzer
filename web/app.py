@@ -4,6 +4,7 @@ import os
 from datetime import datetime, timedelta
 import pandas as pd
 import plotly.graph_objects as go
+import plotly.express as px
 from plotly.subplots import make_subplots
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -1033,6 +1034,24 @@ def page_portfolio():
         for w in warnings:
             st.markdown(f'<div class="risk-warn">⚠️ {w}</div>', unsafe_allow_html=True)
 
+    with st.expander("📊 组合相关性热力图 (点击展开)", expanded=False):
+        corr_df = advisor.get_portfolio_correlation()
+        if not corr_df.empty:
+            fig_corr = px.imshow(
+                corr_df,
+                text_auto=True,
+                aspect="auto",
+                color_continuous_scale="RdBu_r",
+                title="持仓标的相关性矩阵 (近90日)",
+            )
+            st.plotly_chart(fig_corr, use_container_width=True)
+            st.caption(
+                "💡 说明: 相关系数越接近 1 (红色)，表示涨跌越同步；接近 -1 (蓝色) 表示负相关；"
+                "接近 0 表示无相关性。组合中若存在大量高度相关的标的，说明风险分散不足。"
+            )
+        else:
+            st.info("数据不足，无法计算相关性矩阵")
+
     st.markdown("---")
 
     signal_order = {"BUY": 0, "SELL": 1, "HOLD": 2, "ERROR": 3}
@@ -1164,6 +1183,86 @@ def page_portfolio():
                 st.dataframe(
                     styled, use_container_width=True, hide_index=True, height=200
                 )
+
+        # ─── 扩展工具箱 (仓位 & 网格) ───
+        calc_info = advice.get("price_calc", {})
+        atr_val = calc_info.get("atr")
+
+        with st.expander("🧮 量化工具箱 (仓位/网格)", expanded=False):
+            t_col1, t_col2 = st.columns(2)
+
+            # 1. 仓位管理
+            with t_col1:
+                st.markdown("##### ⚖️ ATR 波动率仓位建议")
+                if atr_val:
+                    # 默认总资金 10万，单笔风险 1%
+                    total_cap = st.number_input(
+                        "账户总资金", value=100000, step=10000, key=f"cap_{r['symbol']}"
+                    )
+                    risk_pct = st.number_input(
+                        "单笔风险 (%)", value=1.0, step=0.1, key=f"risk_{r['symbol']}"
+                    )
+
+                    pos_size = advisor.calculate_position_size(
+                        atr=float(atr_val),
+                        current_price=r.get("current_price", 0),
+                        total_capital=total_cap,
+                        risk_per_trade=risk_pct / 100,
+                    )
+
+                    if pos_size:
+                        rec_shares = pos_size.get("suggested_shares", 0)
+                        rec_val = pos_size.get("suggested_value", 0)
+                        st.info(
+                            f"建议买入: **{rec_shares} 股**\n\n"
+                            f"对应市值: ¥{rec_val:,.0f} ({pos_size.get('position_pct', 0):.1%})\n\n"
+                            f"止损金额: ¥{pos_size.get('max_risk_amount', 0):.0f}"
+                        )
+                else:
+                    st.warning("缺少ATR数据，无法计算建议仓位")
+
+            # 2. 网格策略 (仅ETF或用户启用)
+            with t_col2:
+                st.markdown("##### 🥅 网格策略生成器")
+                if atr_val:
+                    grid_mid = st.number_input(
+                        "网格中枢价",
+                        value=r.get("current_price", 0.0),
+                        format="%.3f",
+                        key=f"grid_mid_{r['symbol']}",
+                    )
+                    grid_num = st.number_input(
+                        "网格数量 (单边)",
+                        value=5,
+                        min_value=1,
+                        max_value=20,
+                        key=f"grid_num_{r['symbol']}",
+                    )
+
+                    grid_table = advisor.calculate_grid_strategy(
+                        current_price=grid_mid,
+                        volatility_atr=float(atr_val),
+                        grid_count=grid_num,
+                    )
+
+                    if grid_table:
+                        df_grid = pd.DataFrame(grid_table)
+                        st.dataframe(
+                            df_grid[["action", "price", "diff_pct"]],
+                            column_config={
+                                "action": "操作",
+                                "price": st.column_config.NumberColumn(
+                                    "挂单价", format="%.3f"
+                                ),
+                                "diff_pct": st.column_config.NumberColumn(
+                                    "偏离%", format="%.2f%%"
+                                ),
+                            },
+                            hide_index=True,
+                            use_container_width=True,
+                        )
+                else:
+                    st.warning("缺少波动率数据，无法生成网格")
 
         st.markdown("---")
 

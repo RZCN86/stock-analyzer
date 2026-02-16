@@ -1,6 +1,7 @@
 import os
 import yaml
 import numpy as np
+import pandas as pd
 from datetime import datetime
 from typing import List, Dict, Any, Optional
 
@@ -456,7 +457,120 @@ class PortfolioAdvisor:
             "data_summary": summary,
         }
 
-    def analyze_all(self, strategies: Optional[List[str]] = None) -> Dict[str, Any]:
+    def get_portfolio_correlation(self, days: int = 90) -> pd.DataFrame:
+        """计算持仓相关性矩阵"""
+        if not self.holdings:
+            return pd.DataFrame()
+
+        price_data = {}
+        for holding in self.holdings:
+            symbol = holding["symbol"]
+            # 尝试获取最近N天的数据
+            try:
+                # 确保有数据 (fetch if needed logic is inside analyze_holding usually,
+                # but here we just read DB to be fast. If empty, skip)
+                df = db.get_daily_data(symbol)
+                if not df.empty:
+                    # 截取最近N天
+                    df = df.tail(days).copy()
+                    df["date"] = pd.to_datetime(df["date"])
+                    df = df.set_index("date")
+                    price_data[f"{symbol}"] = df["close"]
+            except Exception as e:
+                logger.warning(f"获取 {symbol} 相关性数据失败: {e}")
+
+        if not price_data:
+            return pd.DataFrame()
+
+        # 合并数据
+        df_prices = pd.DataFrame(price_data)
+        # 计算相关性
+        if df_prices.empty:
+            return pd.DataFrame()
+
+        return df_prices.corr()
+
+    def calculate_position_size(
+        self,
+        atr: float,
+        current_price: float,
+        total_capital: float = 100000,
+        risk_per_trade: float = 0.01,
+        stop_loss_atr_multiple: float = 2.0,
+    ) -> Dict[str, Any]:
+        """基于ATR计算建议仓位 (波动率资金管理)"""
+        if atr <= 0 or current_price <= 0:
+            return {}
+
+        # 止损距离
+        stop_loss_dist = atr * stop_loss_atr_multiple
+        # 单笔交易最大允许亏损额
+        max_risk_amt = total_capital * risk_per_trade
+
+        # 建议股数 = 最大亏损额 / 每股止损距离
+        suggested_shares = int(max_risk_amt / stop_loss_dist)
+        # 向下取整到100倍数 (A股)
+        suggested_shares = (suggested_shares // 100) * 100
+
+        # 建议金额
+        suggested_value = suggested_shares * current_price
+        # 仓位占比
+        position_pct = suggested_value / total_capital
+
+        return {
+            "atr": atr,
+            "stop_loss_distance": stop_loss_dist,
+            "stop_loss_price": current_price - stop_loss_dist,
+            "max_risk_amount": max_risk_amt,
+            "suggested_shares": suggested_shares,
+            "suggested_value": suggested_value,
+            "position_pct": position_pct,
+            "risk_per_trade_pct": risk_per_trade,
+        }
+
+    def calculate_grid_strategy(
+        self,
+        current_price: float,
+        volatility_atr: float,
+        grid_count: int = 5,
+        grid_width_atr: float = 1.0,
+    ) -> List[Dict[str, Any]]:
+        """生成网格交易策略表"""
+        if current_price <= 0 or volatility_atr <= 0:
+            return []
+
+        step = volatility_atr * grid_width_atr
+        grids = []
+
+        # 生成买入网格 (当前价下方)
+        for i in range(1, grid_count + 1):
+            price = current_price - (step * i)
+            grids.append(
+                {
+                    "type": "BUY",
+                    "level": i,
+                    "price": round(price, 3),
+                    "diff_pct": -round((step * i) / current_price * 100, 2),
+                    "action": f"买入第{i}档",
+                }
+            )
+
+        # 生成卖出网格 (当前价上方)
+        for i in range(1, grid_count + 1):
+            price = current_price + (step * i)
+            grids.append(
+                {
+                    "type": "SELL",
+                    "level": i,
+                    "price": round(price, 3),
+                    "diff_pct": round((step * i) / current_price * 100, 2),
+                    "action": f"卖出第{i}档",
+                }
+            )
+
+        # 按价格降序排列
+        grids.sort(key=lambda x: x["price"], reverse=True)
+        return grids
         if not self.holdings:
             return {
                 "holdings_count": 0,
