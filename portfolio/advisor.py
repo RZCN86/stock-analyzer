@@ -209,19 +209,18 @@ class PortfolioAdvisor:
         final_signal = result.get("final_signal", "HOLD")
         confidence = result.get("confidence", 0)
 
-        if cost_price > 0 and current_price > 0:
+        market_value = current_price * shares if current_price > 0 else 0
+        if cost_price != 0 and current_price > 0:
             pnl = (current_price - cost_price) * shares
-            pnl_pct = (current_price - cost_price) / cost_price
-            market_value = current_price * shares
+            pnl_pct = (current_price - cost_price) / abs(cost_price)
         else:
             pnl = 0
             pnl_pct = 0
-            market_value = 0
 
         risk_cfg = self.risk_config
         advice = self._generate_advice(final_signal, confidence, pnl_pct, risk_cfg)
 
-        if cost_price > 0:
+        if cost_price != 0:
             advice["stop_loss_price"] = round(
                 cost_price * (1 - risk_cfg.get("stop_loss", 0.08)), 2
             )

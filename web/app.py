@@ -941,7 +941,7 @@ def page_portfolio():
             "持仓数量", min_value=1, value=100, key="pf_new_shares"
         )
         new_cost = st.number_input(
-            "买入均价", min_value=0.01, value=10.0, format="%.2f", key="pf_new_cost"
+            "买入均价", value=10.0, format="%.2f", key="pf_new_cost"
         )
         new_date = st.date_input("买入日期", key="pf_new_date")
         if st.button("确认添加", key="pf_add_btn", use_container_width=True):
