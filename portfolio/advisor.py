@@ -475,7 +475,11 @@ class PortfolioAdvisor:
                     df = df.tail(days).copy()
                     df["date"] = pd.to_datetime(df["date"])
                     df = df.set_index("date")
-                    price_data[f"{symbol}"] = df["close"]
+
+                    market = holding.get("market", "A")
+                    name = get_stock_name(symbol, market)
+                    label = f"{name}({symbol})" if name else symbol
+                    price_data[label] = df["close"]
             except Exception as e:
                 logger.warning(f"获取 {symbol} 相关性数据失败: {e}")
 

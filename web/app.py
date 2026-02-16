@@ -1039,10 +1039,20 @@ def page_portfolio():
         if not corr_df.empty:
             fig_corr = px.imshow(
                 corr_df,
-                text_auto=True,
+                text_auto=".2f",
                 aspect="auto",
                 color_continuous_scale="RdBu_r",
+                zmin=-1,
+                zmax=1,
                 title="持仓标的相关性矩阵 (近90日)",
+            )
+            fig_corr.update_layout(
+                xaxis_title="",
+                yaxis_title="",
+                height=600,
+            )
+            fig_corr.update_traces(
+                hovertemplate="<b>%{x}</b> vs <b>%{y}</b><br>相关系数: %{z:.2f}<extra></extra>"
             )
             st.plotly_chart(fig_corr, use_container_width=True)
             st.caption(
