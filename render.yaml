@@ -1,0 +1,52 @@
+# Render.com 部署配置
+
+## 方法：使用 Docker 部署
+
+### 1. 创建 Dockerfile
+
+```dockerfile
+FROM python:3.12-slim
+
+WORKDIR /app
+
+# 安装依赖
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# 复制代码
+COPY . .
+
+# 暴露 Streamlit 默认端口
+EXPOSE 8501
+
+# 启动命令
+CMD ["streamlit", "run", "web/app.py", "--server.port=8501", "--server.address=0.0.0.0"]
+```
+
+### 2. 创建 render.yaml
+
+```yaml
+services:
+  - type: web
+    name: stock-analyzer
+    runtime: docker
+    plan: free
+    autoDeploy: false
+```
+
+### 3. 部署步骤
+
+1. 推送到 GitHub
+2. 访问 https://render.com
+3. 注册账号，选择 "Web Service"
+4. 连接 GitHub 仓库
+5. 选择 Docker 运行时
+6. 部署
+
+---
+
+## 注意事项
+
+免费 tier 的限制：
+- 15分钟后会休眠，下次访问需要冷启动（约30秒）
+- 每月750小时运行时间

@@ -1,0 +1,179 @@
+- generic [ref=e2]:
+  - generic [ref=e33]:
+    - heading "📊 股票分析系统" [level=1] [ref=e37]
+    - separator [ref=e42]
+    - generic [ref=e44]:
+      - generic [ref=e45]:
+        - paragraph [ref=e48]: 股票代码
+        - button "Help for 股票代码" [ref=e52] [cursor=pointer]:
+          - img [ref=e53]
+      - textbox "股票代码" [ref=e58]:
+        - /placeholder: ""
+        - text: "000001"
+    - generic [ref=e60]:
+      - generic [ref=e61]:
+        - paragraph [ref=e64]: 市场
+        - button "Help for 市场" [ref=e68] [cursor=pointer]:
+          - img [ref=e69]
+      - generic [ref=e73]:
+        - generic [ref=e74]:
+          - generic [ref=e75]: A股
+          - combobox "Selected A股. 市场" [ref=e77]
+        - img "open" [ref=e79]
+    - separator [ref=e85]
+    - heading "🕐 最近查询" [level=3] [ref=e89]
+    - button "平安银行 (000001)" [ref=e96] [cursor=pointer]:
+      - paragraph [ref=e100]: 平安银行 (000001)
+    - button "🗑️ 清空历史" [ref=e105] [cursor=pointer]:
+      - paragraph [ref=e109]: 🗑️ 清空历史
+    - separator [ref=e114]
+    - heading "📥 数据管理" [level=3] [ref=e118]
+    - generic [ref=e120]:
+      - button "🔄 更新数据" [ref=e125] [cursor=pointer]:
+        - paragraph [ref=e129]: 🔄 更新数据
+      - button "🗑️ 清除缓存" [ref=e134] [cursor=pointer]:
+        - paragraph [ref=e138]: 🗑️ 清除缓存
+    - separator [ref=e143]
+    - heading "🎯 策略配置" [level=3] [ref=e147]
+    - generic [ref=e149]:
+      - paragraph [ref=e153]: 选择策略
+      - generic [ref=e156]:
+        - generic [ref=e157]:
+          - button "双均线交叉, close by backspace" [ref=e158]:
+            - generic "双均线交叉" [ref=e159]
+            - img [ref=e161] [cursor=pointer]
+          - button "MACD策略, close by backspace" [ref=e163]:
+            - generic "MACD策略" [ref=e164]
+            - img [ref=e166] [cursor=pointer]
+          - button "RSI超买卖, close by backspace" [ref=e168]:
+            - generic "RSI超买卖" [ref=e169]
+            - img [ref=e171] [cursor=pointer]
+          - button "多因子组合, close by backspace" [ref=e173]:
+            - generic "多因子组合" [ref=e174]
+            - img [ref=e176] [cursor=pointer]
+          - combobox "Selected 双均线交叉, MACD策略, RSI超买卖, 多因子组合. 选择策略" [ref=e179]
+        - generic [ref=e180]:
+          - button "Clear all" [ref=e181] [cursor=pointer]
+          - img "open" [ref=e183] [cursor=pointer]
+    - separator [ref=e189]
+    - heading "📈 回测设置" [level=3] [ref=e193]
+    - generic [ref=e195]:
+      - paragraph [ref=e199]: 回测模式
+      - radiogroup "回测模式" [ref=e200] [cursor=pointer]:
+        - generic [ref=e201]:
+          - radio "单策略回测" [checked]
+          - paragraph [ref=e206]: 单策略回测
+        - generic [ref=e207]:
+          - radio "多策略对比"
+          - paragraph [ref=e212]: 多策略对比
+    - generic [ref=e215] [cursor=pointer]:
+      - checkbox "启用回测"
+      - paragraph [ref=e220]: 启用回测
+    - separator [ref=e225]
+    - alert [ref=e228]:
+      - paragraph [ref=e233]: 💡 提示：输入股票代码后，点击'分析'按钮开始分析
+  - generic [ref=e3]:
+    - banner [ref=e6]:
+      - generic [ref=e9]:
+        - button "Deploy" [ref=e20] [cursor=pointer]:
+          - generic [ref=e22]: Deploy
+        - button [ref=e24] [cursor=pointer]:
+          - img [ref=e25]
+    - generic [ref=e236]:
+      - heading "📈 平安银行 (000001)" [level=1] [ref=e241]:
+        - text: 📈 平安银行 (000001)
+        - generic [ref=e242]:
+          - link "Link to heading":
+            - /url: "#000001"
+            - img
+      - generic [ref=e244]:
+        - generic [ref=e249]:
+          - paragraph [ref=e253]: 平安银行
+          - paragraph [ref=e257]: ¥10.91
+          - generic [ref=e258]:
+            - img [ref=e259]
+            - paragraph [ref=e264]: "-0.46%"
+        - generic [ref=e269]:
+          - paragraph [ref=e273]: 今日最高
+          - paragraph [ref=e277]: ¥10.99
+        - generic [ref=e282]:
+          - paragraph [ref=e286]: 今日最低
+          - paragraph [ref=e290]: ¥10.90
+        - generic [ref=e295]:
+          - paragraph [ref=e299]: 成交量
+          - paragraph [ref=e303]: 56万
+      - separator [ref=e308]
+      - heading "🎯 交易信号" [level=3] [ref=e313]:
+        - text: 🎯 交易信号
+        - generic [ref=e314]:
+          - link "Link to heading":
+            - /url: "#e067c699"
+            - img
+      - generic [ref=e316]:
+        - heading "🔴 SELL" [level=3] [ref=e324]:
+          - text: 🔴 SELL
+          - generic [ref=e325]:
+            - link "Link to heading":
+              - /url: "#sell"
+              - img
+        - 'heading "置信度: 82.50%" [level=3] [ref=e333]':
+          - text: "置信度: 82.50%"
+          - generic [ref=e334]:
+            - link "Link to heading":
+              - /url: "#82-50"
+              - img
+        - generic [ref=e336]:
+          - paragraph [ref=e341]:
+            - text: ⚪
+            - strong [ref=e342]: ma_cross
+            - text: ": HOLD - MA5在MA20上方，偏离度0.21%"
+          - paragraph [ref=e347]:
+            - text: ⚪
+            - strong [ref=e348]: macd
+            - text: ": HOLD - DIF在DEA上方 (偏离:18.03%)"
+          - paragraph [ref=e353]:
+            - text: ⚪
+            - strong [ref=e354]: rsi
+            - text: ": HOLD - RSI在合理区间 (47.25, 位置:43.1%)"
+          - paragraph [ref=e359]:
+            - text: 🔴
+            - strong [ref=e360]: multi_factor
+            - text: ": SELL - 多因子得分疲软 (0.38); 信号来源: MACD金叉, RSI正常"
+      - separator [ref=e365]
+      - heading "📊 技术分析图表" [level=3] [ref=e370]:
+        - text: 📊 技术分析图表
+        - generic [ref=e371]:
+          - link "Link to heading":
+            - /url: "#68f3f149"
+            - img
+      - generic [ref=e374]:
+        - paragraph [ref=e378]: 显示天数
+        - generic [ref=e379]:
+          - slider "显示天数" [ref=e383]:
+            - generic:
+              - generic:
+                - paragraph: "120"
+          - generic:
+            - generic:
+              - paragraph: "30"
+            - generic:
+              - paragraph: "500"
+      - generic [ref=e386]:
+        - tablist [ref=e388]:
+          - tab "K线图" [selected] [ref=e389] [cursor=pointer]:
+            - paragraph [ref=e391]: K线图
+          - tab "技术指标" [ref=e392] [cursor=pointer]:
+            - paragraph [ref=e394]: 技术指标
+          - tab "原始数据" [ref=e395] [cursor=pointer]:
+            - paragraph [ref=e397]: 原始数据
+        - tabpanel "K线图" [ref=e400]:
+          - generic [ref=e401]:
+            - paragraph [ref=e406]:
+              - strong [ref=e407]: K线图与均线
+            - generic [ref=e410]:
+              - button "Fullscreen" [ref=e415] [cursor=pointer]:
+                - img [ref=e416]
+              - img "0" [ref=e421]
+      - separator [ref=e426]
+      - separator [ref=e431]
+      - paragraph [ref=e436]: ⚠️ 免责声明：本系统仅供学习研究使用，不构成投资建议。股市有风险，投资需谨慎。

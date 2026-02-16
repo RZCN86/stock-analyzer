@@ -1,0 +1,45 @@
+# 全局配置
+app:
+  name: "StockAnalyzer"
+  version: "1.0.0"
+  timezone: "Asia/Shanghai"
+
+# 数据库配置
+database:
+  path: "data/stock_analyzer.db"
+  echo: false  # 是否打印SQL语句
+
+# 数据获取配置
+fetcher:
+  # A股/港股/ETF 使用 AKShare
+  akshare:
+    rate_limit: 1.0  # 每秒请求限制
+    retry_times: 3   # 重试次数
+    timeout: 30      # 超时时间(秒)
+  
+  # 美股使用 yfinance
+  yfinance:
+    rate_limit: 0.5
+    retry_times: 3
+    timeout: 30
+
+# 数据更新配置
+update:
+  # 自动更新频率（小时）
+  interval: 24
+  # 历史数据起始日期
+  start_date: "2020-01-01"
+  # 是否下载复权数据
+  adjust: "qfq"  # qfq=前复权, hfq=后复权, 空=不复权
+
+# 回测配置
+backtest:
+  initial_cash: 100000  # 初始资金
+  commission: 0.0003    # 手续费率
+  slippage: 0.001       # 滑点
+
+# 日志配置
+logging:
+  level: INFO
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: "logs/stock_analyzer.log"

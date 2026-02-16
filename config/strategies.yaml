@@ -1,0 +1,203 @@
+strategies:
+  ma_cross:
+    name: "双均线交叉策略"
+    description: "短期均线上穿长期均线买入，下穿卖出"
+    enabled: true
+    category: "趋势跟踪"
+    params:
+      short_window: 5
+      long_window: 20
+    risk_management:
+      stop_loss: 0.05
+      take_profit: 0.10
+      max_position: 0.3
+
+  macd:
+    name: "MACD策略"
+    description: "MACD金叉买入，死叉卖出"
+    enabled: true
+    category: "趋势跟踪"
+    params:
+      fast: 12
+      slow: 26
+      signal: 9
+    risk_management:
+      stop_loss: 0.05
+      take_profit: 0.10
+      max_position: 0.3
+
+  rsi:
+    name: "RSI超买卖策略"
+    description: "RSI超卖买入，超买卖出"
+    enabled: true
+    category: "均值回归"
+    params:
+      period: 14
+      oversold: 30
+      overbought: 70
+    risk_management:
+      stop_loss: 0.05
+      take_profit: 0.10
+      max_position: 0.3
+
+  bollinger:
+    name: "布林带突破策略"
+    description: "价格突破上轨买入，跌破下轨卖出"
+    enabled: true
+    category: "波动突破"
+    params:
+      period: 20
+      std_dev: 2
+    risk_management:
+      stop_loss: 0.05
+      take_profit: 0.15
+      max_position: 0.3
+
+  momentum:
+    name: "动量策略"
+    description: "追涨杀跌，基于价格和成交量动量"
+    enabled: true
+    category: "趋势跟踪"
+    params:
+      momentum_period: 10
+      ma_period: 20
+      threshold: 0.03
+    risk_management:
+      stop_loss: 0.05
+      take_profit: 0.10
+      max_position: 0.3
+
+  mean_reversion:
+    name: "均值回归策略"
+    description: "价格偏离均值后回归，适合震荡市场"
+    enabled: true
+    category: "均值回归"
+    params:
+      ma_period: 20
+      std_period: 20
+      entry_threshold: 2.0
+      exit_threshold: 0.5
+    risk_management:
+      stop_loss: 0.05
+      take_profit: 0.08
+      max_position: 0.3
+
+  breakout:
+    name: "突破策略"
+    description: "突破近期高低点进行交易"
+    enabled: true
+    category: "趋势跟踪"
+    params:
+      lookback_period: 20
+      breakout_threshold: 0.02
+      volume_confirm: true
+    risk_management:
+      stop_loss: 0.05
+      take_profit: 0.15
+      max_position: 0.3
+
+  kdj:
+    name: "KDJ随机指标策略"
+    description: "基于KDJ指标的交叉和超买超卖"
+    enabled: true
+    category: "均值回归"
+    params:
+      k_period: 9
+      d_period: 3
+      j_period: 3
+      oversold: 20
+      overbought: 80
+    risk_management:
+      stop_loss: 0.05
+      take_profit: 0.10
+      max_position: 0.3
+
+  volume:
+    name: "成交量策略"
+    description: "基于成交量变化的量价分析"
+    enabled: true
+    category: "量价分析"
+    params:
+      volume_ma_period: 20
+      volume_surge_threshold: 1.5
+      volume_shrink_threshold: 0.7
+      price_change_threshold: 0.02
+    risk_management:
+      stop_loss: 0.05
+      take_profit: 0.10
+      max_position: 0.3
+
+  multi_factor:
+    name: "多因子组合策略"
+    description: "综合MA、MACD、RSI等多个因子"
+    enabled: true
+    category: "综合策略"
+    params:
+      ma_short: 5
+      ma_long: 20
+      macd_fast: 12
+      macd_slow: 26
+      rsi_period: 14
+      weight_ma: 0.25
+      weight_macd: 0.25
+      weight_rsi: 0.25
+      weight_trend: 0.25
+      buy_threshold: 0.6
+      sell_threshold: 0.4
+    risk_management:
+      stop_loss: 0.05
+      take_profit: 0.10
+      max_position: 0.25
+
+  grid:
+    name: "网格交易策略"
+    description: "在价格区间内低买高卖，适合震荡市场"
+    enabled: true
+    category: "套利策略"
+    params:
+      grid_levels: 5
+      grid_spacing: 0.02
+      grid_type: "arithmetic"
+      base_price_period: 20
+      trailing_stop: true
+    risk_management:
+      stop_loss: 0.10
+      take_profit: 0.15
+      max_position: 0.5
+
+  fractal:
+    name: "分形交易策略"
+    description: "基于比尔·威廉姆斯的分形指标，识别价格反转点"
+    enabled: true
+    category: "趋势反转"
+    params:
+      fractal_window: 2
+      trend_filter: true
+      trend_ma_period: 20
+      volume_confirm: true
+    risk_management:
+      stop_loss: 0.05
+      take_profit: 0.10
+      max_position: 0.3
+
+# 技术指标配置
+indicators:
+  ma:
+    periods: [5, 10, 20, 30, 60]  # 常用均线周期
+  
+  macd:
+    fast: 12
+    slow: 26
+    signal: 9
+  
+  rsi:
+    period: 14
+  
+  kdj:
+    k_period: 9
+    d_period: 3
+    j_period: 3
+  
+  bollinger:
+    period: 20
+    std_dev: 2
