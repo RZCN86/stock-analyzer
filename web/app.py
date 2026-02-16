@@ -21,6 +21,7 @@ from database.db_manager import db
 from analysis.indicators import TechnicalIndicators
 from utils.stock_name import get_stock_name, get_stock_info
 from utils.history import add_to_history, get_history, clear_history
+from portfolio.advisor import PortfolioAdvisor
 
 # ─── 常量定义 ───────────────────────────────────────────────────────────────
 
@@ -107,6 +108,18 @@ CUSTOM_CSS = """
     background: #fffde7; border-left: 3px solid #f9a825; padding: 0.6rem 1rem;
     border-radius: 0 0.4rem 0.4rem 0; font-size: 0.82rem; color: #5d4037;
 }
+
+/* 持仓仪表盘 */
+.advice-card {
+    padding: 1rem 1.2rem; border-radius: 0.6rem; margin-bottom: 0.8rem;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.06);
+}
+.advice-buy  { background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); border-left: 4px solid #2e7d32; }
+.advice-sell { background: linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%); border-left: 4px solid #c62828; }
+.advice-hold { background: linear-gradient(135deg, #f5f5f5 0%, #e8eaf6 100%); border-left: 4px solid #5c6bc0; }
+.pnl-pos { color: #c62828; font-weight: 700; }
+.pnl-neg { color: #2e7d32; font-weight: 700; }
+.risk-warn { background: #fff8e1; border-left: 3px solid #ff8f00; padding: 0.4rem 0.8rem; border-radius: 0.3rem; font-size: 0.82rem; margin: 0.3rem 0; }
 </style>
 """
 
@@ -907,13 +920,239 @@ def sidebar():
     )
 
 
-# ─── 主页面 ─────────────────────────────────────────────────────────────────
+# ─── 持仓仪表盘 ─────────────────────────────────────────────────────────────
 
 
-def main():
-    # 注入 CSS
-    st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
+@st.cache_resource
+def get_portfolio_advisor():
+    return PortfolioAdvisor()
 
+
+def page_portfolio():
+    advisor = get_portfolio_advisor()
+    advisor.reload()
+
+    st.sidebar.subheader("💼 持仓管理")
+
+    with st.sidebar.expander("➕ 添加持仓", expanded=False):
+        new_symbol = st.text_input("股票代码", key="pf_new_symbol")
+        new_market = st.selectbox("市场", ["A", "US", "ETF"], key="pf_new_market")
+        new_shares = st.number_input(
+            "持仓数量", min_value=1, value=100, key="pf_new_shares"
+        )
+        new_cost = st.number_input(
+            "买入均价", min_value=0.01, value=10.0, format="%.2f", key="pf_new_cost"
+        )
+        new_date = st.date_input("买入日期", key="pf_new_date")
+        if st.button("确认添加", key="pf_add_btn", use_container_width=True):
+            if new_symbol.strip():
+                advisor.add_holding(
+                    new_symbol.strip(),
+                    new_market,
+                    int(new_shares),
+                    float(new_cost),
+                    new_date.strftime("%Y-%m-%d"),
+                )
+                st.sidebar.success(f"✅ 已添加 {new_symbol.strip()}")
+                st.rerun()
+
+    if advisor.holdings:
+        with st.sidebar.expander("🗑️ 删除持仓", expanded=False):
+            for h in advisor.holdings:
+                label = f"{h['symbol']} ({MARKET_LABELS.get(h.get('market', 'A'), h.get('market', 'A'))})"
+                if st.button(
+                    f"删除 {label}", key=f"pf_del_{h['symbol']}_{h.get('market', 'A')}"
+                ):
+                    advisor.remove_holding(h["symbol"], h.get("market", "A"))
+                    st.rerun()
+
+    st.sidebar.markdown("---")
+    st.sidebar.subheader("⚙️ 风控设置")
+    risk = advisor.risk_config
+    stop_loss_pct = st.sidebar.slider(
+        "止损线 (%)",
+        1,
+        30,
+        int(risk.get("stop_loss", 0.08) * 100),
+        1,
+        key="pf_sl",
+    )
+    take_profit_pct = st.sidebar.slider(
+        "止盈线 (%)",
+        5,
+        50,
+        int(risk.get("take_profit", 0.20) * 100),
+        1,
+        key="pf_tp",
+    )
+    stop_loss = stop_loss_pct / 100.0
+    take_profit = take_profit_pct / 100.0
+
+    st.title("💼 持仓交易建议")
+
+    if not advisor.holdings:
+        st.info("📭 暂无持仓数据，请在左侧添加持仓或编辑 config/portfolio.yaml")
+        return
+
+    st.markdown(
+        f"持仓数量: **{len(advisor.holdings)}** 只 | 分析时间: **{datetime.now().strftime('%Y-%m-%d %H:%M')}**"
+    )
+
+    advisor._config.setdefault("risk", {})
+    advisor._config["risk"]["stop_loss"] = stop_loss
+    advisor._config["risk"]["take_profit"] = take_profit
+
+    with st.spinner("正在分析所有持仓，请稍候..."):
+        analysis = advisor.analyze_all()
+
+    summary = analysis.get("portfolio_summary", {})
+
+    c1, c2, c3, c4 = st.columns(4)
+    total_mv = summary.get("total_market_value", 0)
+    total_pnl = summary.get("total_pnl", 0)
+    total_pnl_pct = summary.get("total_pnl_pct", 0)
+    pnl_delta = f"{total_pnl_pct:+.2f}%"
+
+    with c1:
+        st.metric("总市值", f"¥{total_mv:,.0f}")
+    with c2:
+        st.metric("总盈亏", f"¥{total_pnl:,.0f}", delta=pnl_delta)
+    with c3:
+        st.metric("买入信号", f"{summary.get('buy_signals', 0)} 只", delta="看多")
+    with c4:
+        st.metric(
+            "卖出信号",
+            f"{summary.get('sell_signals', 0)} 只",
+            delta="看空",
+            delta_color="inverse",
+        )
+
+    warnings = summary.get("position_warnings", [])
+    if warnings:
+        for w in warnings:
+            st.markdown(f'<div class="risk-warn">⚠️ {w}</div>', unsafe_allow_html=True)
+
+    st.markdown("---")
+
+    signal_order = {"BUY": 0, "SELL": 1, "HOLD": 2, "ERROR": 3}
+    results = sorted(
+        analysis.get("results", []),
+        key=lambda r: (
+            signal_order.get(r.get("final_signal", "HOLD"), 9),
+            -r.get("confidence", 0),
+        ),
+    )
+
+    for r in results:
+        if "error" in r:
+            st.warning(f"⚠️ {r.get('name', r['symbol'])}({r['symbol']}): {r['error']}")
+            continue
+
+        signal = r.get("final_signal", "HOLD")
+        confidence = r.get("confidence", 0)
+        advice = r.get("advice", {})
+        sym = currency(r.get("market", "A"))
+
+        css_class = {"BUY": "advice-buy", "SELL": "advice-sell"}.get(
+            signal, "advice-hold"
+        )
+        signal_emoji = {"BUY": "🟢", "SELL": "🔴"}.get(signal, "⚪")
+
+        pnl_pct = r.get("pnl_pct", 0)
+        pnl_class = "pnl-pos" if pnl_pct >= 0 else "pnl-neg"
+        pnl_val = r.get("pnl", 0)
+
+        badge = market_badge_html(r.get("market", "A"))
+
+        st.markdown(
+            f'<div class="advice-card {css_class}">'
+            f'<b style="font-size:1.1rem">{signal_emoji} {r.get("name", r["symbol"])}</b> '
+            f"<code>{r['symbol']}</code> {badge}"
+            f" &nbsp; | &nbsp; 现价: <b>{sym}{r.get('current_price', 0):.2f}</b>"
+            f" &nbsp; | &nbsp; 成本: {sym}{r.get('cost_price', 0):.2f}"
+            f' &nbsp; | &nbsp; 盈亏: <span class="{pnl_class}">{sym}{pnl_val:+,.0f} ({pnl_pct:+.2f}%)</span>'
+            f"</div>",
+            unsafe_allow_html=True,
+        )
+
+        col_adv, col_detail = st.columns([1, 1])
+        with col_adv:
+            st.markdown(
+                f"**操作建议: {advice.get('action', '持有')}** (置信度: {confidence:.0%})"
+            )
+            st.markdown(f"📋 {advice.get('advice', '')}")
+            st.markdown(f"📊 建议仓位: **{advice.get('suggested_position', '维持')}**")
+
+            sl_price = advice.get("stop_loss_price")
+            tp_price = advice.get("take_profit_price")
+            if sl_price and tp_price:
+                st.markdown(
+                    f"🎯 止盈价: {sym}{tp_price:.2f} &nbsp;|&nbsp; 🛡️ 止损价: {sym}{sl_price:.2f}"
+                )
+
+            for w in advice.get("risk_warnings", []):
+                st.markdown(f'<div class="risk-warn">{w}</div>', unsafe_allow_html=True)
+
+        with col_detail:
+            details = r.get("strategy_details", [])
+            if details:
+                df_strat = pd.DataFrame(details)
+                df_strat = df_strat[["name", "signal", "confidence", "reason"]]
+                df_strat.columns = ["策略", "信号", "置信度", "依据"]
+
+                def _color_signal(val):
+                    if val == "BUY":
+                        return "color: #2e7d32; font-weight:700"
+                    if val == "SELL":
+                        return "color: #c62828; font-weight:700"
+                    return "color: #757575"
+
+                styled = df_strat.style.map(_color_signal, subset=["信号"])
+                st.dataframe(
+                    styled, use_container_width=True, hide_index=True, height=200
+                )
+
+        st.markdown("---")
+
+    if results:
+        pie_data = {
+            "买入": summary.get("buy_signals", 0),
+            "卖出": summary.get("sell_signals", 0),
+            "持有": summary.get("hold_signals", 0),
+        }
+        pie_data = {k: v for k, v in pie_data.items() if v > 0}
+        if pie_data:
+            fig = go.Figure(
+                data=[
+                    go.Pie(
+                        labels=list(pie_data.keys()),
+                        values=list(pie_data.values()),
+                        marker=dict(colors=["#4caf50", "#f44336", "#9e9e9e"]),
+                        hole=0.4,
+                    )
+                ]
+            )
+            fig.update_layout(
+                title="持仓信号分布",
+                **{
+                    k: v
+                    for k, v in PLOTLY_LAYOUT.items()
+                    if k != "xaxis_rangeslider_visible"
+                },
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
+    st.markdown(
+        '<div class="disclaimer">⚠️ <b>免责声明</b>：本系统仅供学习研究使用，'
+        "不构成投资建议。股市有风险，投资需谨慎。</div>",
+        unsafe_allow_html=True,
+    )
+
+
+# ─── 股票分析页面 ────────────────────────────────────────────────────────────
+
+
+def page_stock_analysis():
     if "selected_symbol" not in st.session_state:
         st.session_state.selected_symbol = "000001"
     if "selected_market" not in st.session_state:
@@ -1134,6 +1373,22 @@ def main():
         "不构成投资建议。股市有风险，投资需谨慎。</div>",
         unsafe_allow_html=True,
     )
+
+
+def main():
+    st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
+
+    page = st.sidebar.radio(
+        "功能导航",
+        ["📈 股票分析", "💼 持仓仪表盘"],
+        key="nav_page",
+    )
+    st.sidebar.markdown("---")
+
+    if page == "📈 股票分析":
+        page_stock_analysis()
+    else:
+        page_portfolio()
 
 
 if __name__ == "__main__":
