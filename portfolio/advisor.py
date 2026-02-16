@@ -220,13 +220,28 @@ class PortfolioAdvisor:
         risk_cfg = self.risk_config
         advice = self._generate_advice(final_signal, confidence, pnl_pct, risk_cfg)
 
-        if cost_price != 0:
-            advice["stop_loss_price"] = round(
-                cost_price * (1 - risk_cfg.get("stop_loss", 0.08)), 2
-            )
-            advice["take_profit_price"] = round(
-                cost_price * (1 + risk_cfg.get("take_profit", 0.20)), 2
-            )
+        sl_rate = risk_cfg.get("stop_loss", 0.08)
+        tp_rate = risk_cfg.get("take_profit", 0.20)
+
+        if cost_price > 0:
+            base_price = cost_price
+            base_label = "成本价"
+        elif current_price > 0:
+            base_price = current_price
+            base_label = "现价"
+        else:
+            base_price = 0
+            base_label = ""
+
+        if base_price > 0:
+            advice["stop_loss_price"] = round(base_price * (1 - sl_rate), 2)
+            advice["take_profit_price"] = round(base_price * (1 + tp_rate), 2)
+            advice["price_calc"] = {
+                "base_price": round(base_price, 2),
+                "base_label": base_label,
+                "sl_rate": sl_rate,
+                "tp_rate": tp_rate,
+            }
 
         strategy_details = []
         for s_name, s_detail in result.get("details", {}).items():

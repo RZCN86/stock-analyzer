@@ -1085,10 +1085,21 @@ def page_portfolio():
 
             sl_price = advice.get("stop_loss_price")
             tp_price = advice.get("take_profit_price")
+            calc = advice.get("price_calc")
             if sl_price and tp_price:
                 st.markdown(
-                    f"🎯 止盈价: {sym}{tp_price:.2f} &nbsp;|&nbsp; 🛡️ 止损价: {sym}{sl_price:.2f}"
+                    f"🎯 止盈价: **{sym}{tp_price:.2f}** &nbsp;|&nbsp; 🛡️ 止损价: **{sym}{sl_price:.2f}**"
                 )
+                if calc:
+                    base_label = calc.get("base_label", "")
+                    base_price = calc.get("base_price", 0)
+                    sl_r = calc.get("sl_rate", 0)
+                    tp_r = calc.get("tp_rate", 0)
+                    st.caption(
+                        f"计算基准: {base_label} {sym}{base_price:.2f} &nbsp;| &nbsp;"
+                        f"止盈 = {base_label} × (1 + {tp_r:.0%}) = {sym}{tp_price:.2f} &nbsp;| &nbsp;"
+                        f"止损 = {base_label} × (1 − {sl_r:.0%}) = {sym}{sl_price:.2f}"
+                    )
 
             for w in advice.get("risk_warnings", []):
                 st.markdown(f'<div class="risk-warn">{w}</div>', unsafe_allow_html=True)
