@@ -571,6 +571,8 @@ class PortfolioAdvisor:
         # 按价格降序排列
         grids.sort(key=lambda x: x["price"], reverse=True)
         return grids
+
+    def analyze_all(self, strategies: Optional[List[str]] = None) -> Dict[str, Any]:
         if not self.holdings:
             return {
                 "holdings_count": 0,
