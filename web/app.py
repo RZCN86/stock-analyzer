@@ -25,15 +25,33 @@ from utils.history import add_to_history, get_history, clear_history
 # ─── 常量定义 ───────────────────────────────────────────────────────────────
 
 ALL_STRATEGIES = [
-    "ma_cross", "macd", "rsi", "bollinger", "momentum", "mean_reversion",
-    "breakout", "kdj", "volume", "multi_factor", "grid", "fractal",
+    "ma_cross",
+    "macd",
+    "rsi",
+    "bollinger",
+    "momentum",
+    "mean_reversion",
+    "breakout",
+    "kdj",
+    "volume",
+    "multi_factor",
+    "grid",
+    "fractal",
 ]
 
 STRATEGY_NAMES = {
-    "ma_cross": "双均线交叉", "macd": "MACD策略", "rsi": "RSI超买卖",
-    "bollinger": "布林带突破", "momentum": "动量策略", "mean_reversion": "均值回归",
-    "breakout": "突破策略", "kdj": "KDJ随机指标", "volume": "成交量策略",
-    "multi_factor": "多因子组合", "grid": "网格交易", "fractal": "分形交易",
+    "ma_cross": "双均线交叉",
+    "macd": "MACD策略",
+    "rsi": "RSI超买卖",
+    "bollinger": "布林带突破",
+    "momentum": "动量策略",
+    "mean_reversion": "均值回归",
+    "breakout": "突破策略",
+    "kdj": "KDJ随机指标",
+    "volume": "成交量策略",
+    "multi_factor": "多因子组合",
+    "grid": "网格交易",
+    "fractal": "分形交易",
 }
 
 STRATEGY_CATEGORIES = {
@@ -187,8 +205,7 @@ def chart_candlestick(df: pd.DataFrame, symbol: str, stock_name: str) -> go.Figu
 
     # 成交量（涨红跌绿）
     colors = [
-        UP_COLOR if c >= o else DOWN_COLOR
-        for c, o in zip(df["close"], df["open"])
+        UP_COLOR if c >= o else DOWN_COLOR for c, o in zip(df["close"], df["open"])
     ]
     fig.add_trace(
         go.Bar(
@@ -556,9 +573,11 @@ def show_strategy_details(result: dict):
                 reason = detail.get("reason", "")
                 conf = detail.get("confidence", 0)
                 icon = {"BUY": "🟢", "SELL": "🔴", "HOLD": "⚪"}.get(signal, "⚪")
-                tag_cls = {"BUY": "tag-buy", "SELL": "tag-sell", "HOLD": "tag-hold"}.get(
-                    signal, "tag-hold"
-                )
+                tag_cls = {
+                    "BUY": "tag-buy",
+                    "SELL": "tag-sell",
+                    "HOLD": "tag-hold",
+                }.get(signal, "tag-hold")
 
                 st.markdown(
                     f"{icon} **{STRATEGY_NAMES.get(name, name)}** "
@@ -591,24 +610,20 @@ def show_backtest_single(
     trades = backtest_result.get("trades", [])
     initial_cash = backtest_result.get("initial_cash", 100000)
 
-    tab_eq, tab_trades, tab_pie = st.tabs(
-        ["📈 资金曲线", "📋 交易记录", "🎯 胜负分布"]
-    )
+    tab_eq, tab_trades, tab_pie = st.tabs(["📈 资金曲线", "📋 交易记录", "🎯 胜负分布"])
 
     with tab_eq:
         if equity_curve:
-            fig = chart_equity(
-                equity_curve, trades, initial_cash, stock_name, symbol
-            )
+            fig = chart_equity(equity_curve, trades, initial_cash, stock_name, symbol)
             st.plotly_chart(fig, use_container_width=True)
 
     with tab_trades:
         if trades:
             df_trades = pd.DataFrame(trades)
             if "date" in df_trades.columns:
-                df_trades["date"] = pd.to_datetime(
-                    df_trades["date"]
-                ).dt.strftime("%Y-%m-%d")
+                df_trades["date"] = pd.to_datetime(df_trades["date"]).dt.strftime(
+                    "%Y-%m-%d"
+                )
             display_cols = [
                 c
                 for c in ["type", "date", "price", "shares", "pnl"]
@@ -797,14 +812,23 @@ def sidebar():
 
     # ── 策略配置（按类别分组）
     st.sidebar.subheader("🎯 策略配置")
-    select_all = st.sidebar.checkbox("✅ 全选所有策略", value=False)
 
-    if select_all:
-        default_strategies = ALL_STRATEGIES
-    else:
-        default_strategies = ["ma_cross", "macd", "rsi", "multi_factor"]
+    # 初始化 select_all 历史状态
+    if "prev_select_all" not in st.session_state:
+        st.session_state.prev_select_all = False
+
+    select_all = st.sidebar.checkbox(
+        "✅ 全选所有策略", value=False, key="select_all_cb"
+    )
+
+    # 检测全选状态变化，同步各策略复选框
+    if select_all != st.session_state.prev_select_all:
+        for s in ALL_STRATEGIES:
+            st.session_state[f"strat_{s}"] = select_all
+        st.session_state.prev_select_all = select_all
 
     # 分类展示策略
+    default_strategies = ["ma_cross", "macd", "rsi", "multi_factor"]
     selected_strategies = []
     for cat, members in STRATEGY_CATEGORIES.items():
         with st.sidebar.expander(
@@ -1090,9 +1114,7 @@ def main():
                 f"📈 单策略回测 — {STRATEGY_NAMES.get(backtest_strategy, backtest_strategy)}"
             )
             with st.spinner("正在进行回测..."):
-                backtest_result = analyzer.backtest(
-                    symbol, backtest_strategy, market
-                )
+                backtest_result = analyzer.backtest(symbol, backtest_strategy, market)
             show_backtest_single(backtest_result, stock_name, symbol, market)
 
         elif backtest_mode == "multiple" and backtest_strategies:
