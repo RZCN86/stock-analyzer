@@ -924,7 +924,7 @@ def sidebar():
 # ─── 持仓仪表盘 ─────────────────────────────────────────────────────────────
 
 
-@st.cache_resource
+# @st.cache_resource
 def get_portfolio_advisor():
     return PortfolioAdvisor()
 
