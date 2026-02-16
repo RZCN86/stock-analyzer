@@ -925,12 +925,12 @@ def sidebar():
 
 
 # @st.cache_resource
-def get_portfolio_advisor():
+def _get_advisor_instance():
     return PortfolioAdvisor()
 
 
 def page_portfolio():
-    advisor = get_portfolio_advisor()
+    advisor = _get_advisor_instance()
     advisor.reload()
 
     st.sidebar.subheader("💼 持仓管理")
@@ -1035,7 +1035,12 @@ def page_portfolio():
             st.markdown(f'<div class="risk-warn">⚠️ {w}</div>', unsafe_allow_html=True)
 
     with st.expander("📊 组合相关性热力图 (点击展开)", expanded=False):
-        corr_df = advisor.get_portfolio_correlation()
+        try:
+            corr_df = advisor.get_portfolio_correlation()
+        except AttributeError:
+            st.error("组件加载中，请刷新页面...")
+            corr_df = pd.DataFrame()
+
         if not corr_df.empty:
             fig_corr = px.imshow(
                 corr_df,
