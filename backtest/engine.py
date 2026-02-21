@@ -108,6 +108,13 @@ class BacktestEngine:
             else 0
         )
 
+        date_labels = []
+        for d in dates:
+            try:
+                date_labels.append(pd.Timestamp(d).strftime("%Y-%m-%d"))
+            except Exception:
+                date_labels.append(str(d))
+
         return {
             "symbol": symbol,
             "initial_cash": self.initial_cash,
@@ -120,6 +127,8 @@ class BacktestEngine:
             "win_rate": f"{win_rate * 100:.2f}%",
             "trades": trades,
             "equity_curve": equity_curve,
+            "prices": prices.tolist(),
+            "dates": date_labels,
         }
 
     def run_vectorbt_backtest(

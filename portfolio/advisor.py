@@ -10,6 +10,7 @@ from database.db_manager import db
 from analysis.indicators import TechnicalIndicators
 from utils.stock_name import get_stock_name
 from utils.helpers import logger
+from utils import supabase_store
 
 
 class PortfolioAdvisor:
@@ -42,6 +43,8 @@ class PortfolioAdvisor:
         self._load_config()
 
     def _load_config(self):
+        self._use_supabase = supabase_store.is_available()
+
         try:
             with open(self.config_path, "r", encoding="utf-8") as f:
                 self._config = yaml.safe_load(f) or {}
@@ -51,6 +54,12 @@ class PortfolioAdvisor:
         except yaml.YAMLError as e:
             logger.error(f"持仓配置解析失败: {e}")
             self._config = {"holdings": [], "risk": {}, "analysis": {}}
+
+        if self._use_supabase:
+            cloud_holdings = supabase_store.load_holdings()
+            if cloud_holdings:
+                self._config["holdings"] = cloud_holdings
+                logger.info(f"Loaded {len(cloud_holdings)} holdings from Supabase")
 
     def reload(self):
         self._load_config()
@@ -107,6 +116,9 @@ class PortfolioAdvisor:
         self._config["holdings"] = holdings
         self.save_config(self._config)
 
+        if self._use_supabase:
+            supabase_store.save_holding(symbol, market, shares, cost_price, buy_date)
+
     def remove_holding(self, symbol: str, market: str):
         holdings = [
             h
@@ -117,6 +129,9 @@ class PortfolioAdvisor:
         ]
         self._config["holdings"] = holdings
         self.save_config(self._config)
+
+        if self._use_supabase:
+            supabase_store.delete_holding(symbol, market)
 
     def _confidence_level(self, confidence: float) -> str:
         if confidence >= 0.65:

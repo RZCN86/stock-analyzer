@@ -58,7 +58,9 @@ class StockAnalyzer:
             if not local_data.empty:
                 last_date = db.get_last_update_date(symbol)
                 if last_date:
-                    parsed_last_date = pd.to_datetime(last_date, errors="coerce", utc=True)
+                    parsed_last_date = pd.to_datetime(
+                        last_date, errors="coerce", utc=True
+                    )
                     if pd.notna(parsed_last_date):
                         start_date = (parsed_last_date + timedelta(days=1)).strftime(
                             "%Y-%m-%d"
@@ -233,6 +235,9 @@ class StockAnalyzer:
                             "sharpe_ratio": result.get("sharpe_ratio", 0),
                             "final_equity": result.get("final_equity", 0),
                             "initial_cash": result.get("initial_cash", 100000),
+                            "equity_curve": result.get("equity_curve", []),
+                            "prices": result.get("prices", []),
+                            "dates": result.get("dates", []),
                         }
                     )
             except Exception as e:
